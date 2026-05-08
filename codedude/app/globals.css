@@ -3,7 +3,6 @@
  *
  * Uses Tailwind CSS v4 with shadcn/ui's CSS variable system.
  *
- * Design System — exact replica of Lovable's visual identity:
  * - Light mode: Warm off-white (#fcfbf8) background
  * - Dark mode: Near-black (#1c1c1c) background — the DEFAULT theme
  * - Minimalism with depth: clean layouts, subtle layered effects
@@ -15,9 +14,9 @@
  */
 
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+
 @plugin "@tailwindcss/typography";
+@plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
 
