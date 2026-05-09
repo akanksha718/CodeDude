@@ -1,0 +1,18 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "codedude",
+    "main": "src/index.ts",
+    "compatibility_date": "2026-01-01",
+    "kv_namespaces": [
+        {
+            "binding": "METADATA",
+            "id": "ba492f2a0c91493e8cb3aa4e3df75284"
+        }
+    ],
+    "r2_buckets": [
+        {
+            "binding": "FILES",
+            "bucket_name": "codedude-files",
+        }
+    ]
+}
