@@ -1,9 +1,12 @@
-import Image from "next/image";
-
-export default function Home() {
+import React from 'react'
+import { Navbar, Hero } from '@/components/landing'
+const LandingPage = () => {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-
+    <div className="relative min-h-screen overflow-hidden">
+      <Navbar />
+      <Hero />
     </div>
-  );
+  )
 }
+
+export default LandingPage

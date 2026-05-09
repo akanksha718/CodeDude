@@ -1,3 +1,5 @@
+import { Project } from '@/types/project';
+
 export const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'http://localhost:8787';
 
 export interface ApiError {
@@ -48,12 +50,10 @@ async function authenticatedFetch<T>(
 export function createApiClient(getToken: GetTokenFunction) {
     return {
         projects: {
-            projects: {
-                list: () =>
-                    authenticatedFetch<{ projects: Project[] }>(getToken,
-                        "/api/projects",
-                    ),
-            },
+            list: () =>
+                authenticatedFetch<{ projects: Project[] }>(getToken,
+                    "/api/projects",
+                ),
         }
     }
 }
