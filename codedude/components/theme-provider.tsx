@@ -3,7 +3,6 @@
  *
  * Theme provider that manages dark/light/system mode.
  * Persists the user's preference in localStorage and a cookie
- * (cookie enables SSR to render the correct theme on first load).
  *
  * The provider reads the stored theme on mount and applies
  * the appropriate class ("dark" or nothing) to the <html> element.
@@ -139,8 +138,8 @@ export function ThemeProvider({
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
     localStorage.setItem(THEME_KEY, newTheme);
-    // Set cookie for SSR (1 year expiry)
-    document.cookie = `${THEME_KEY}=${newTheme};path=/;max-age=31536000;SameSite=Lax`;
+    // Set cookie for SSR 
+    document.cookie = `${THEME_KEY}=${newTheme};path=/;max-age=31536;SameSite=Lax`;
     applyTheme(resolveTheme(newTheme));
   }, []);
 

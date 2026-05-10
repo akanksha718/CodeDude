@@ -12,8 +12,9 @@ function ClerkWithTheme({ children }: { children: React.ReactNode }) {
             window.matchMedia("(prefers-color-scheme: dark)").matches
         )
      );
-     return (<ClerkProvider appearance={{
-        baseTheme: isDark ? dark : "undefined"
+     return (
+     <ClerkProvider appearance={{
+        baseTheme : isDark ? dark : undefined
      }}>
         {children}
      </ClerkProvider>)

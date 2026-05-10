@@ -4,15 +4,15 @@ import type { Env, AppVariables } from '../types';
 
 
 
-let cachedJWKS:ReturnType<typeof createRemoteJWKSet> | null = null;
+let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null;
 let cachedJWKSUrl: string | null = null;
 
-async function getJWKS(jwksUrl: string){
+async function getJWKS(jwksUrl: string) {
     if (cachedJWKS && cachedJWKSUrl === jwksUrl) {
         return cachedJWKS;
     }
 
-    cachedJWKS = createRemoteJWKSet(new URL(jwksUrl),{
+    cachedJWKS = createRemoteJWKSet(new URL(jwksUrl), {
         cooldownDuration: 30 * 1000, // 30 seconds cooldown before refreshing keys
         cacheMaxAge: 5 * 60 * 1000, // 5 minutes cache max age
     });
@@ -42,7 +42,7 @@ export const authMiddleware = createMiddleware<{ Bindings: Env; Variables: AppVa
         }
         c.set('userId', userId);
         await next();
-    }catch(err){
+    } catch (err) {
         return c.json({ error: 'Invalid or expired token', code: 'INVALID_TOKEN' }, 401);
     }
 })

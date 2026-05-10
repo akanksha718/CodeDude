@@ -12,7 +12,7 @@ projectRoutes.get("/", async (c) => {
         [];
 
     if (!projectIds || projectIds.length === 0) {
-        return c.json({ projects: [] });
+        return c.json({ projects: [] as Project[] });
     }
     const projects = await Promise.all(projectIds.map(async (projectId) => {
         return c.env.METADATA.get<Project>(`project:${projectId}`, "json");
