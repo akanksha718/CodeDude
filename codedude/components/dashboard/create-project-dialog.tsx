@@ -9,9 +9,6 @@ import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from ".
 
 
 
-
-
-
 const AI_MODELS = [
     { value: "gpt-4o-mini", label: "GPT-4o Mini" },
     { value: "gpt-4o", label: "GPT-4o" },
@@ -22,8 +19,6 @@ const AI_MODELS = [
     { value: "deepseek-v3", label: "DeepSeek V3" },
     { value: "deepseek-r1", label: "DeepSeek R1" },
 ] as const;
-
-type AIModelValue = (typeof AI_MODELS)[number]["value"];
 
 
 export interface CreateProjectData {
@@ -41,7 +36,7 @@ export interface CreateProjectDialogProps {
 export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProjectDialogProps) {
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
-    const [model, setModel] = useState<AIModelValue>(AI_MODELS[0].value);
+    const [model, setModel] = useState<string>(AI_MODELS[0].value);
     function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         const trimmedName = name.trim();
@@ -77,7 +72,7 @@ export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProj
                         <label htmlFor="ai-model" className="text-sm font-medium ">
                             AI Model
                         </label>
-                        <Select value={model} onValueChange={(value) => setModel(value as AIModelValue)}>
+                        <Select value={model} onValueChange={setModel}>
                             <SelectTrigger id="ai-model" >
                                 <SelectValue placeholder="Select an AI model" />
                             </SelectTrigger>
@@ -90,6 +85,22 @@ export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProj
                             </SelectContent>
                         </Select>
                     </div>
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                onOpenChange(false);
+                            }}
+                        >
+                            Cancel
+
+                        </Button>
+                        <Button type="submit"
+                            disabled={!name.trim() || !description.trim()}>
+                            Create Project
+                        </Button>
+                    </DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
