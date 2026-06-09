@@ -11,6 +11,14 @@ import { Button } from "../ui/button";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
 
+/*This loads ProjectPreview only in the browser.
+ssr: false means:
+Don't render this component on the server.
+dynamic tells Next.js to load the component only when it is needed, instead of bundling it into the initial page load.
+import("./project-preview") loads that file asynchronously.
+.then((mod) => ({ default: mod.ProjectPreview })) adapts a named export into the default export shape that dynamic expects.
+{ ssr: false } disables server-side rendering for this component, so it only renders in the browser.
+*/
 
 const ProjectPreview = dynamic(
     () => import("./project-preview").then((mod) => ({ default: mod.ProjectPreview })),
@@ -28,8 +36,6 @@ export interface ProjectCardPProps {
     files?: Record<string, string>;
     onRename: (id: string) => void;
     onDelete: (id: string) => void;
-
-
 }
 
 

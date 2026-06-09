@@ -48,6 +48,9 @@ const ThemeContext = createContext<ThemeContextValue>({
   setTheme: () => {},
 });
 
+// JsDoc comments explain the purpose and usage of each function and component, making it easier for other developers to understand the code.
+
+
 /**
  * Resolves "system" to the actual theme based on OS preference.
  *

@@ -29,3 +29,31 @@ export function Providers({ children }: { children: React.ReactNode }) {
    
   )
 }
+
+
+
+/*
+This file creates global providers for your Next.js app. It connects:
+
+   Theme management (light/dark mode)
+   Clerk authentication
+   Makes Clerk automatically follow your app's theme.
+
+ClerkProvider provides authentication features:
+
+   Sign In
+   Sign Up
+   User management
+   Session handling
+to the entire application.
+
+Why this check?
+   typeof window === "undefined"
+   In Next.js:
+   Server has no window
+   Browser has window
+This prevents crashes.
+
+
+
+ */
