@@ -1,4 +1,5 @@
-import { Project } from '@/types/project';
+import { Project, ProjectFile } from '@/types/project';
+
 
 export const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'http://localhost:8787';
 
@@ -51,9 +52,26 @@ export function createApiClient(getToken: GetTokenFunction) {
     return {
         projects: {
             list: () =>
-                authenticatedFetch<{ projects: Project[] }>(getToken,
-                    "/api/projects",
-                ),
+                authenticatedFetch<{ projects: Project[] }>(getToken,"/api/projects"),
+            get:(id: string) =>
+                authenticatedFetch<{ project: Project }>(getToken, `/api/projects/${id}`),
+            getFiles:(id: string) =>
+                authenticatedFetch<{ files: ProjectFile[];version:number }>(getToken, `/api/projects/${id}/files`),         
+            create: (data:{name:string;model:string;description?:string}) =>
+                authenticatedFetch<{ project: Project }>(getToken, "/api/projects",{ 
+                    method: "POST",
+                    body: JSON.stringify(data),
+                }),
+            update: (id: string, data: { name?: string; model?: string }) =>
+                authenticatedFetch<{ project: Project }>(getToken, `/api/projects/${id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify(data),
+                }),
+            delete: (id: string) =>
+                authenticatedFetch<{ success: boolean }>(getToken, `/api/projects/${id}`, {
+                    method: "DELETE",
+                }),
+            
         }
-    }
+    };
 }

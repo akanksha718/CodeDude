@@ -1,6 +1,31 @@
 import { Hono } from 'hono';
 import { Env, AppVariables } from '../types';
 import { Project } from '../types/project';
+import { sanitizeProjectName } from '../services/sanitize';
+import { FREE_PROJECT_LIMIT, getCredits } from '../services/credits';
+import { nanoid } from 'nanoid';
+import { createInitialVersion } from '../ai/default-project';
+
+
+
+/*  
+
+KV keys:
+key pattern               Value
+-----------------------  ---------------------------------------------
+project:{userId}          Project[] (list of all projects for a user, used for listing)
+project:{projectId}      Project metadata (id, userId, name, model, currentVersion, timestamps)
+chat:{projectId}         Array of chat messages for the project (for context in AI generations)
+user-projects:{userId}  Array of project IDs owned by the user (for listing)
+
+
+R2 Keys:
+Key pattern               Value
+-----------------------  ---------------------------------------------
+{projectId}/v{versionNumber}/files.json  JSON file containing the list of all files for that version, along with their content. This is the source of truth for file contents at each version.
+
+
+ */
 
 
 const projectRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>();
@@ -65,6 +90,67 @@ projectRoutes.get("/:id/files",async(c)=> {
 
 
 
+
+/*
+- POST /api/projects - Create a new project with an initial version (version 0)
+
+----------------------------------------------------------
+1 Create New Project with unique name
+2 Project metadata stored in KV
+3 the users Project id updated in KV
+3 strter template file in R2 as version 0
+4 Request body: { name: string, model: string,description?: string }
+
+ */
+projectRoutes.post("/", async (c) => {
+    const userId = c.var.userId;
+    const body = await c.req.json<{
+        name:string;
+        model:string;
+        description?: string;
+    }>();
+    const sanitizedName = sanitizeProjectName(body.name);
+    if(!sanitizedName){
+        return c.json({error:"Invalid project name. Please avoid special characters and keep it concise.",code:"INVALID_PROJECT_NAME"},400);
+    }
+    const credits = await getCredits(userId, c.env);
+    if(credits.plan === "free" ){
+        const existingIds = await c.env.METADATA.get<string[]>(
+            `user-projects:${userId}`, 
+            "json"
+        );
+        const proejctCount = existingIds ? existingIds.length : 0;
+        if(proejctCount >= FREE_PROJECT_LIMIT){ 
+            return c.json({error:"Free plan limit reached. Please upgrade to create more projects.",code:"PLAN_LIMIT_REACHED",
+                limit: FREE_PROJECT_LIMIT,
+                current: proejctCount,
+            },400);
+        }
+    }
+
+    const projectId = nanoid(12);
+    const now = new Date();
+    const project: Project = {
+        id: projectId,
+        userId,
+        name: sanitizedName,
+        model: body.model||"gpt-4o-mini",
+        currentVersion: 0,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+    };
+    const initialVersion = createInitialVersion(project.name, project.model);
+    const existingIds = await c.env.METADATA.get<string[]>(`user-projects:${userId}`, "json");
+    const updatedIds = existingIds ? [...existingIds, projectId] : [projectId];
+    await Promise.all([
+        c.env.METADATA.put(`project:${projectId}`, JSON.stringify(project)),
+        c.env.METADATA.put(`user-projects:${userId}`, JSON.stringify(updatedIds)),
+        c.env.FILES.put(`${projectId}/v0/files.json`, JSON.stringify({ files: initialVersion.files })),
+    ]);
+    return c.json({ project });
+});
+
+
 // *-Patch /api/projects/:id - Update project metadata (e.g., name, model) without creating a new version
 projectRoutes.patch("/:id", async(c)=>{
     const userId = c.var.userId;
@@ -78,9 +164,56 @@ projectRoutes.patch("/:id", async(c)=>{
     }
     const body = await c.req.json<{ name?: string; model?: string }>();
     if(body.name){
-        const sanitized=
+        const sanitized=sanitizeProjectName(body.name);
+        if(sanitized){
+            project.name=sanitized;
+        }
     }
+    if(body.model){
+        project.model=body.model;  
+    }
+    project.updatedAt=new Date().toISOString();
+    await c.env.METADATA.put(`project:${projectId}`, JSON.stringify(project));
+    return c.json({ project });
 });
+
+
+// Delete /api/projects/:id - Delete a project and all its versions/files
+projectRoutes.delete("/:id", async(c)=>{
+    const userId = c.var.userId;
+    const projectId = c.req.param("id");
+    const project = await c.env.METADATA.get<Project>(`project:${projectId}`, "json");
+    if(!project){
+        return c.json({error:"Project Not found",code:"NOT_FOUND"},404);
+    }
+    if(project.userId !== userId){
+        return c.json({error:"ACCESS_DENIED",code:"FORBIDDEN"},403);
+    }
+
+    const existingIds = await c.env.METADATA.get<string[]>(
+        `user-projects:${userId}`,
+        "json"
+    );
+    const updatedIds = (existingIds ?? []).filter((id) => id !== projectId);
+    const r2object = await c.env.FILES.list({ prefix: `${projectId}/` });
+    const deletePromises=r2object.objects.map((obj) =>
+        c.env.FILES.delete(obj.key)
+    );
+    await Promise.all([
+        c.env.METADATA.delete(`project:${projectId}`),
+        c.env.METADATA.delete(`chat:${projectId}`),
+        c.env.METADATA.put(
+            `user-projects:${userId}`,
+            JSON.stringify(updatedIds)
+        ),
+        ...deletePromises,
+    ]);
+ 
+    return c.json({ message: "Project and all its versions/files deleted successfully" ,success: true});
+});
+
+
+
 
 
 

@@ -66,7 +66,7 @@ export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProj
                         <label htmlFor="project-name" className="text-sm font-medium ">
                             Project Name
                         </label>
-                        <Input id="project-name" placeholder="your Project" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+                        <Input id="project-name" placeholder="Project Name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
                     </div>
                     <div className='space-y-2'>
                         <label htmlFor="ai-model" className="text-sm font-medium ">
@@ -84,6 +84,17 @@ export function CreateProjectDialog({ open, onOpenChange, onSubmit }: CreateProj
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div>
+                        <label htmlFor="project-description" className="text-sm font-medium ">
+                            Project Description
+                        </label>
+                        <Input
+                            id="project-description"
+                            placeholder="Describe your project..."
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                        />
                     </div>
                     <DialogFooter>
                         <Button
