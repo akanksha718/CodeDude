@@ -3,7 +3,10 @@ import {SignUp} from '@clerk/nextjs'
 const SignUpPage = () => {
   return (
     <div>
-      <SignUp />
+      <SignUp
+        fallbackRedirectUrl="/dashboard"
+        signInFallbackRedirectUrl="/sign-in"
+      />
     </div>
   )
 }

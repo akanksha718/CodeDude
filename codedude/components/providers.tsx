@@ -12,12 +12,17 @@ function ClerkWithTheme({ children }: { children: React.ReactNode }) {
             window.matchMedia("(prefers-color-scheme: dark)").matches
         )
      );
-     return (
-     <ClerkProvider appearance={{
-        baseTheme : isDark ? dark : undefined
-     }}>
+       return (
+       <ClerkProvider
+          appearance={{
+             baseTheme: isDark ? dark : undefined,
+          }}
+         //  fallbackRedirectUrl="/dashboard"
+          signInFallbackRedirectUrl="/dashboard"
+          signUpFallbackRedirectUrl="/dashboard"
+       >
         {children}
-     </ClerkProvider>)
+       </ClerkProvider>)
 }
 export function Providers({ children }: { children: React.ReactNode }) {
   return (

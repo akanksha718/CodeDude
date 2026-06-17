@@ -2,7 +2,7 @@
  * worker/src/ai/default-project.ts
  *
  * Starter template files for a newly created project.
- * When a user creates a project, these files are stored in R2
+ * When a user creates a project, these files are stored in KV
  * as version 0 — the initial state before any AI generation.
  *
  * The template is a minimal React + Tailwind app with:

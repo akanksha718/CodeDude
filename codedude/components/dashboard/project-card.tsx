@@ -96,7 +96,7 @@ export function ProjectCard({ project, files, onRename, onDelete }: ProjectCardP
         };
     }, []);
     return (
-        <div onClick={() => router.push(`/projects/${project.id}`)} >
+        <div onClick={() => router.push(`/project/${project.id}`)} >
             <Card className="group cursor-pointer gap-0 overflow-hidden p-0 transition-all duration-150 hover:border-white/20 hover:brightness-[1.05]">
                 <div
                     ref={thumbnailRef}

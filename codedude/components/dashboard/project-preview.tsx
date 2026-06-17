@@ -66,7 +66,7 @@ export function ProjectPreview({files, onLoad}: ProjectPreviewProps) {
     return (
         <div className="origin-top-left" style={{width: IRTUAL_WIDTH, height: VIRTUAL_HEIGHT}}>
             <div className="sandpack-stretch h-full w-full">
-                <SandpackProvider template="react-ts" theme="dark" files={sandpackFiles} options={{externalResources: ["https://cdn.tailwindcss.com"]}}
+                <SandpackProvider template="react-ts" theme="dark" files={sandpackFiles}
                 customSetup={{dependencies}}
                 >
                     <LoadModifier onLoad={onLoad}/>

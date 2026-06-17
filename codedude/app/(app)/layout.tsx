@@ -25,7 +25,7 @@ const AppLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   if (isEditorPage) {
     return (
       <div className="flex h-screen flex-col bg-background text-foreground">
-        <div>RatelimitedBanner</div>
+        {/* <div>RatelimitedBanner</div> */}
         <div className="flex flex-1 overflow-hidden">
           {children}
         </div>

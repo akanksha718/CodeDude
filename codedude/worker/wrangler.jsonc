@@ -3,16 +3,11 @@
     "name": "codedude",
     "main": "src/index.ts",
     "compatibility_date": "2026-01-01",
+    "compatibility_flags": ["nodejs_compat"],
     "kv_namespaces": [
         {
             "binding": "METADATA",
             "id": "bde58dbfb6454a5284f0992a17ebd572"
-        }
-    ],
-    "r2_buckets": [
-        {
-            "binding": "FILES",
-            "bucket_name": "codedude-files",
         }
     ]
 }

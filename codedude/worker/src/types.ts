@@ -2,7 +2,7 @@
  * worker/src/types.ts
  *
  * TypeScript type definitions for the Cloudflare Worker environment.
- * The Env interface defines all bindings (KV, R2) and secrets
+ * The Env interface defines all bindings (KV) and secrets
  * that the Worker has access to at runtime.
  *
  * These are configured in wrangler.jsonc and injected by the
@@ -14,8 +14,7 @@
 /**
  * Worker environment bindings.
  *
- * @property METADATA - KV namespace for project metadata, chat history, credits
- * @property FILES - R2 bucket for storing generated project files
+ * @property METADATA - KV namespace for project metadata, chat history, credits, and project snapshots
  * @property CLERK_ISSUER - Clerk JWT issuer URL for token verification
  * @property CLERK_JWKS_URL - Clerk JWKS endpoint for fetching public keys
  * @property ANTHROPIC_API_KEY - Anthropic API key for Claude models
@@ -26,7 +25,6 @@
  */
 export interface Env {
   METADATA: KVNamespace;
-  FILES: R2Bucket;
   CLERK_ISSUER: string;
   CLERK_JWKS_URL: string;
   ANTHROPIC_API_KEY: string;

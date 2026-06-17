@@ -3,7 +3,7 @@
  *
  * TypeScript interfaces for projects, files, and versions.
  * These types are shared between the frontend and define the shape
- * of data stored in Cloudflare KV (metadata) and R2 (file contents).
+ * of data stored in Cloudflare KV.
  *
  * Used by: dashboard components, editor components, API client, worker routes
  */
@@ -46,7 +46,7 @@ export interface ProjectFile {
 /**
  * A snapshot of the project at a specific point in time.
  * Each AI generation, manual edit, or restore creates a new version.
- * Stored in R2 as `{projectId}/v{versionNumber}/files.json`.
+ * Stored in KV as `project-version:{projectId}:{versionNumber}`.
  *
  * @property versionNumber - Sequential version number (0, 1, 2, ...)
  * @property prompt - The user prompt that triggered this version (empty for manual edits)

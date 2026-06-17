@@ -5,6 +5,7 @@ import { sanitizeProjectName } from '../services/sanitize';
 import { FREE_PROJECT_LIMIT, getCredits } from '../services/credits';
 import { nanoid } from 'nanoid';
 import { createInitialVersion } from '../ai/default-project';
+import type { ProjectFile } from '../types/project';
 
 
 
@@ -18,17 +19,26 @@ project:{projectId}      Project metadata (id, userId, name, model, currentVersi
 chat:{projectId}         Array of chat messages for the project (for context in AI generations)
 user-projects:{userId}  Array of project IDs owned by the user (for listing)
 
-
-R2 Keys:
-Key pattern               Value
------------------------  ---------------------------------------------
-{projectId}/v{versionNumber}/files.json  JSON file containing the list of all files for that version, along with their content. This is the source of truth for file contents at each version.
+project-version:{projectId}:{versionNumber}
+                          Snapshot of files for a project version
+project-versions:{projectId}
+                          Array of version numbers stored for the project
 
 
  */
 
 
 const projectRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>();
+
+const getVersionKey = (projectId: string, versionNumber: number) =>
+    `project-version:${projectId}:${versionNumber}`;
+
+const getVersionIndexKey = (projectId: string) =>
+    `project-versions:${projectId}`;
+
+type VersionSnapshot = {
+    files: ProjectFile[];
+};
 
 
 // Get all list of projects for the authenticated user
@@ -79,12 +89,11 @@ projectRoutes.get("/:id/files",async(c)=> {
     if(project.userId !== userId){
         return c.json({error:"ACCESS_DENIED",code:"FORBIDDEN"},403);
     }
-    const versionKey=`${projectId}/v${project.currentVersion}/files.json`;
-    const versionObject = await c.env.FILES.get(versionKey);
-    if(!versionObject){
+    const versionKey = getVersionKey(projectId, project.currentVersion);
+    const version = await c.env.METADATA.get<VersionSnapshot>(versionKey, "json");
+    if(!version){
         return c.json({error:"Files not found for the current version",code:"FILES_NOT_FOUND"},404);
     }
-    const version = await versionObject.json() as { files: Array<{ path: string; content: string }> };
     return c.json({ files: version.files, version: project.currentVersion  });
 });
 
@@ -98,7 +107,7 @@ projectRoutes.get("/:id/files",async(c)=> {
 1 Create New Project with unique name
 2 Project metadata stored in KV
 3 the users Project id updated in KV
-3 strter template file in R2 as version 0
+3 starter template file in KV as version 0
 4 Request body: { name: string, model: string,description?: string }
 
  */
@@ -145,7 +154,8 @@ projectRoutes.post("/", async (c) => {
     await Promise.all([
         c.env.METADATA.put(`project:${projectId}`, JSON.stringify(project)),
         c.env.METADATA.put(`user-projects:${userId}`, JSON.stringify(updatedIds)),
-        c.env.FILES.put(`${projectId}/v0/files.json`, JSON.stringify({ files: initialVersion.files })),
+        c.env.METADATA.put(getVersionKey(projectId, 0), JSON.stringify({ files: initialVersion.files })),
+        c.env.METADATA.put(getVersionIndexKey(projectId), JSON.stringify([0])),
     ]);
     return c.json({ project });
 });
@@ -195,13 +205,14 @@ projectRoutes.delete("/:id", async(c)=>{
         "json"
     );
     const updatedIds = (existingIds ?? []).filter((id) => id !== projectId);
-    const r2object = await c.env.FILES.list({ prefix: `${projectId}/` });
-    const deletePromises=r2object.objects.map((obj) =>
-        c.env.FILES.delete(obj.key)
+    const versionNumbers = (await c.env.METADATA.get<number[]>(getVersionIndexKey(projectId), "json")) ?? [project.currentVersion];
+    const deletePromises = versionNumbers.map((versionNumber) =>
+        c.env.METADATA.delete(getVersionKey(projectId, versionNumber))
     );
     await Promise.all([
         c.env.METADATA.delete(`project:${projectId}`),
         c.env.METADATA.delete(`chat:${projectId}`),
+        c.env.METADATA.delete(getVersionIndexKey(projectId)),
         c.env.METADATA.put(
             `user-projects:${userId}`,
             JSON.stringify(updatedIds)

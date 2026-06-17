@@ -1,5 +1,5 @@
-import { Project, ProjectFile } from '@/types/project';
-
+import { Project, ProjectFile,  VersionMeta } from '@/types/project';
+import { ChatMessage } from '@/types/chat';
 
 export const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL || 'http://localhost:8787';
 
@@ -72,6 +72,23 @@ export function createApiClient(getToken: GetTokenFunction) {
                     method: "DELETE",
                 }),
             
-        }
+        },
+        chats: {
+            getHistory:(projectId: string) => authenticatedFetch<{ messages: ChatMessage[] }>(getToken, `/api/chat/${projectId}`),
+
+        },
+        credits:{
+            get:()=> authenticatedFetch<{ 
+                remaining: number;
+                total: number;
+                plan: "free" | "pro";
+                priodEnd: string ;
+                isUnlimited: boolean;
+
+             }>(getToken,"/api/credits"),
+        },
+        versions:{
+            list:(projectId: string) => authenticatedFetch<{ versions: VersionMeta[] }>(getToken, `/api/projects/${projectId}/versions`),
+        },
     };
 }

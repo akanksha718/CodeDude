@@ -3,6 +3,9 @@ import { AppVariables, Env } from './types';
 import { cors } from 'hono/cors';
 import { authMiddleware } from './middleware/auth';
 import { projectRoutes } from './routes/project';
+import { chatRoutes } from './routes/chat';
+import { versionsRoutes } from './routes/versions';
+import { creditsRoutes } from './routes/credits';
 
 
 const app=new Hono<{Bindings:Env, Variables:AppVariables}>();
@@ -24,6 +27,9 @@ app.get("/api/health", (c) => {
     return c.json({ status: "ok" ,timestamp: new Date().toISOString()});
 });
 app.route("/api/projects", projectRoutes);
+app.route("/api/chat", chatRoutes);
+app.route("/api/projects/:id/versions", versionsRoutes);
+app.route("/api/credits", creditsRoutes);
 
 // Redirect root to frontend (or serve a simple message)
 app.get('/', (c) => {

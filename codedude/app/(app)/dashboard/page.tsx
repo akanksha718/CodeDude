@@ -154,7 +154,7 @@ const Dashboardpage = () => {
       }catch(err){
         console.warn("Failed to save pending prompt in sessionStorage", err);
       }
-      router.push(`/projects/${response.project.id}`);
+      router.push(`/project/${response.project.id}`);
 
     } catch (error) {
       console.error("Failed to create project", error);
