@@ -5,12 +5,12 @@ import { getModel, MODEL_REGISTRY } from "../ai/providers";
 import { Project, ProjectFile, Version } from "../types/project";
 import { ChatSession, ImageAttachment } from "../types/chat";
 import { sanitizeChatMessage } from "../services/sanitize";
-import { checkCredits } from "../services/credits";
+import { checkCredits, deductCredits } from "../services/credits";
 import { buildSystemPrompt, prepareChatHistory } from "../ai/system-prompt";
 import { streamSSE } from "hono/streaming";
 import { ModelMessage, streamText } from "ai";
-import { mergeFiles, parseFilesFromResponse } from "../ai/file-parse";
-
+import { extractExplanation, mergeFiles, parseFilesFromResponse } from "../ai/file-parse";
+import { ChatMessage } from "../types/chat";
 const chatRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
 
@@ -178,12 +178,76 @@ chatRoutes.post("/:projectId", async (c) => {
 
 
                 }catch(error){
+                    console.error("Error storing new version:", error);
+                    throw new Error("Failed to store new version");
                     
 
                 }
-
+                project.currentVersion = newVersionNumber;
+                project.updatedAt = new Date().toISOString();
+                try{
+                    await c.env.METADATA.put(`project:${projectId}`, JSON.stringify(project));
+                    console.log(`[chat] Updated project ${projectId} to version ${newVersionNumber}.`);
+                }
+                catch(error){
+                    console.error("Error updating project metadata:", error);
+                    throw new Error("Failed to update project metadata");
+                }
             }
-        }catch (error) {}
+            const updatedCredits = await deductCredits(userId, modelConfig.creditCost, c.env);
+            const explanation = extractExplanation(fullResponse);
+            const newUserMessage: ChatMessage = {
+                role: "user",
+                id: `msg-${Date.now()}-user`,
+                content: sanitizedMessage,
+                timestamp: new Date().toISOString(),
+                images: images.length > 0 ? images : undefined,
+
+            };
+            const newAssistantMessgae: ChatMessage = {
+                role: "assistant",
+                id: `msg-${Date.now()}-assistant`,
+                content: explanation ,
+                timestamp: new Date().toISOString(),
+                model: modelId,
+                changedFiles: parsedFiles.length > 0 ? changedFilePaths : undefined,
+                versionNumber:parsedFiles.length > 0 ? newVersionNumber : undefined,
+            };
+            const updatedChatSession: ChatSession = {
+                projectId,
+                messages: [...chatHistory, newUserMessage, newAssistantMessgae],
+                createdAt: chatSession?.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+            try{
+                await c.env.METADATA.put(`chat:${projectId}`, JSON.stringify(updatedChatSession));
+                console.log(`[chat] Updated chat session for project ${projectId}. Total messages: ${updatedChatSession.messages.length}`);
+
+            }catch(error){
+                console.error("Error updating chat session:", error);
+            }
+            if(parsedFiles.length>0){
+            await stream.writeSSE({
+                event: "files",
+                data: JSON.stringify({ files: mergedFiles }),
+                id:String(eventId++),
+            });
+            }
+            await stream.writeSSE({
+                event: "done",
+                data: JSON.stringify({
+                    model: modelId,
+                    versionId:`v${newVersionNumber}`,
+                    changedFiles:  changedFilePaths ,
+                    creditsRemaining: updatedCredits.remaining,
+                }),
+                id:String(eventId++),
+            });
+
+        }catch (error) {
+            console.error("Error during chat processing:", error);
+        }
+        
 
     })
 

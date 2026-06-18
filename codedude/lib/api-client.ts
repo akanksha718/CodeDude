@@ -10,15 +10,22 @@ export interface ApiError {
 
 type GetTokenFunction = () => Promise<string | null>;
 
+// The <T> means:
+// The caller will tell me what type of data the API returns.
+
+
+// A Promise in JavaScript is an object that represents a value that will be available in the future.
 async function authenticatedFetch<T>(
     getToken: GetTokenFunction,
     path: string,
     options: RequestInit = {},
+    // RequestInit is a built-in TypeScript type that describes the configuration object you can pass as the second argument to fetch()
 ): Promise<T> {
     const token = await getToken();
     if (!token) {
         throw new Error('No authentication token available');
     }
+    // fetch() is a built-in JavaScript function used to send HTTP requests to a server and receive responses.
     const response = await fetch(`${WORKER_URL}${path}`, {
         ...options,
         headers: {

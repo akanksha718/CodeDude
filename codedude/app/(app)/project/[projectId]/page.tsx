@@ -9,9 +9,11 @@ import { ChatMessage } from '@/types/chat';
 import { VersionMeta } from '@/types/project';
 import { DEFAULT_MODEL_ID } from '@/lib/model';
 import { Skeleton } from '@/components/ui/skeleton';
-import { createApiClient } from '@/lib/api-client';
+import { createApiClient, WORKER_URL } from '@/lib/api-client';
 import { ProjectFile } from '@/types/project';
-
+import { useCallback } from 'react';
+import { ImageAttachment } from '@/types/chat';
+import { toast } from 'sonner';
 
 
 /**
@@ -22,20 +24,17 @@ import { ProjectFile } from '@/types/project';
 
 function stripMarkdownFences(content: string): string {
   const lines = content.split('\n');
-  if(lines.length > 0 && /^\s*```[a-zA-Z]*\s*$/.test(lines[0])){
+  if (lines.length > 0 && /^\s*```[a-zA-Z]*\s*$/.test(lines[0])) {
     lines.shift(); // Remove the first line
   }
-  while(lines.length > 0 && lines[lines.length - 1].trim() === ""){
+  while (lines.length > 0 && lines[lines.length - 1].trim() === "") {
     lines.pop(); // Remove the last line
   }
-  if(lines.length > 0 && /^\s*```\s*$/.test(lines[lines.length - 1])){
+  if (lines.length > 0 && /^\s*```\s*$/.test(lines[lines.length - 1])) {
     lines.pop(); // Remove the last line if it's a closing fence
   }
   return lines.join('\n');
 }
-
-
-
 
 
 /**
@@ -43,11 +42,12 @@ function stripMarkdownFences(content: string): string {
  * @param files-Array of ProjectFile objects from the API
  * @returns Object mapping file paths to their content
  */
+
 function filesToRecord(files: ProjectFile[]): Record<string, string> {
   const record: Record<string, string> = {};
   for (const file of files) {
     const cleaned = stripMarkdownFences(file.content);
-    if(cleaned !== file.content){
+    if (cleaned !== file.content) {
       console.warn(`Stripped markdown fences from file ${file.path}`);
     }
     record[file.path] = cleaned;
@@ -62,46 +62,45 @@ function filesToRecord(files: ProjectFile[]): Record<string, string> {
  */
 
 function recordToFiles(record: Record<string, string>): ProjectFile[] {
-  return Object.entries(record).map(([path, content]) => ({path, content}));
+  return Object.entries(record).map(([path, content]) => ({ path, content }));
 }
 
 
 
-const EditorPage = ({params}:{params:Promise<{projectId:string}>}) => {
-  const {projectId} = use(params);
-  const {getToken} = useAuth();
+const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
+  const { projectId } = use(params);
+  const { getToken } = useAuth();
   const router = useRouter();
   const autoHealAttemptRef = useRef(0);
   const justGenerationRef = useRef(false);
   const isStreamingRef = useRef(false);
   const MAX_AUTO_HEAL_ATTEMPTS = 3;
   const pendingPromptRef = useRef<string | null>(null);
-
-  const handleSendMessageRef = useRef<(content:string) => void>(() => {});
-
-  const [project,setProject] = useState<Project | null>(null);
-  const [files,setFiles] = useState<Record<string, string>>({});
-  const [isLoading,setIsLoading] = useState(true);
-  const [activeFile,setActiveFile] = useState<string >("src/App.tsx");
-  const [messages,setMessages] = useState<ChatMessage[]>([]);
-  const [isStreaming,setIsStreaming] = useState(false);
-  const [version,setVersion] = useState<VersionMeta[]>([]);
-  const [isLoadingVersion,setIsLoadingVersion] = useState(false);
-  const [creditRemaining,setCreditRemaining] = useState<number | undefined>(undefined);
-  const [creditsTotal,setCreditsTotal] = useState<number>(50);
-  const [userPlan,setUserPlan] = useState<"free" | "pro">("free");
-  const [selectedModelId,setSelectedModelId] = useState<string >(DEFAULT_MODEL_ID);
+  const handleSendMessageRef = useRef<(content: string) => void>(() => { });
+  const [project, setProject] = useState<Project | null>(null);
+  const [files, setFiles] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeFile, setActiveFile] = useState<string>("src/App.tsx");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [version, setVersion] = useState<VersionMeta[]>([]);
+  const [isLoadingVersion, setIsLoadingVersion] = useState(false);
+  const [creditRemaining, setCreditRemaining] = useState<number>(0);
+  const [creditsTotal, setCreditsTotal] = useState<number>(50);
+  const [userPlan, setUserPlan] = useState<"free" | "pro">("free");
+  const [selectedModelId, setSelectedModelId] = useState<string>(DEFAULT_MODEL_ID);
   const isCreditExhausted = creditRemaining !== undefined && creditRemaining !== -1 && creditRemaining <= 0;
-  const [viewingVersion,setViewingVersion] = useState<number | null>(null);
+  const [viewingVersion, setViewingVersion] = useState<number | null>(null);
   const currentFilesRef = useRef<Record<string, string>>({});
-  const [diffState,setDiffState] = useState<{
-    from:number
-    to:number
-    changes:Array<{
-      path:string;
-      type:"added" | "modified" | "removed";
-      oldContent:string | null;
-      newContent:string | null;
+  // diffrence between current files and last saved files, used for autosave and versioning
+  const [diffState, setDiffState] = useState<{
+    from: number
+    to: number
+    changes: Array<{
+      path: string;
+      type: "added" | "modified" | "removed";
+      oldContent: string | null;
+      newContent: string | null;
     }>
   } | null>(null);
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,8 +108,8 @@ const EditorPage = ({params}:{params:Promise<{projectId:string}>}) => {
   const lastSavedFileRef = useRef<Record<string, string>>({});
   const isManualEditRef = useRef(false);
   useEffect(() => {
-    const fetchProject = async() => {
-      try{
+    const fetchProject = async () => {
+      try {
         const client = createApiClient(getToken);
         const [
           projectResponse,
@@ -127,7 +126,7 @@ const EditorPage = ({params}:{params:Promise<{projectId:string}>}) => {
         ]);
         setProject(projectResponse.project);
         setSelectedModelId(projectResponse.project.model || DEFAULT_MODEL_ID);
-        setCreditRemaining(creditsResponse.isUnlimited?-1:creditsResponse.remaining);
+        setCreditRemaining(creditsResponse.isUnlimited ? -1 : creditsResponse.remaining);
         setCreditsTotal(creditsResponse.total);
         setUserPlan(creditsResponse.plan);
         const filesRecord = filesToRecord(filesResponse.files);
@@ -135,52 +134,231 @@ const EditorPage = ({params}:{params:Promise<{projectId:string}>}) => {
         currentFilesRef.current = filesRecord;
         setMessages(chatResponse.messages);
         setVersion(versionResponse.versions);
-
         const filePaths = filesResponse.files.map(f => f.path);
-        if(filePaths.includes("src/App.tsx")){
+        if (filePaths.includes("src/App.tsx")) {
           setActiveFile("src/App.tsx");
-        }else if(filePaths.length > 0){
+        } else if (filePaths.length > 0) {
           setActiveFile(filePaths[0]);
         }
 
 
-        try{
+        try {
           const storageKey = `pendingPrompt:${projectId}`;
           const pendingPrompt = sessionStorage.getItem(storageKey);
-          if(pendingPrompt){
+          if (pendingPrompt) {
             pendingPromptRef.current = pendingPrompt;
             sessionStorage.removeItem(storageKey);
           }
-        }catch(e){
-
+        } catch (e) {
         }
-
-
-
-      }catch(e){
+      } catch (e) {
         console.error("Failed to fetch project data:", e);
         router.push("/dashboard");
-
-      }finally{
+      } finally {
         setIsLoading(false);
         setIsLoadingVersion(false);
       }
     }
     fetchProject();
-  },[projectId,getToken,router])
+  }, [projectId, getToken, router]);
 
-  if(isLoading){
-      return <EditorLayoutSkeleton />
+  const refreshVersion = useCallback(async () => {
+    try {
+      const client = createApiClient(getToken);
+      const response = await client.versions.list(projectId);
+      setVersion(response.versions);
+    } catch (e) {
+      console.error("Failed to refresh version data:", e);
+    }
+  }, [projectId, getToken]);
+
+  const handleBackToCurrent = () => { alert("Pending Back to Current Implementation") };
+
+  if (isLoading) {
+    return <EditorLayoutSkeleton />
   }
   const projectName = project?.name || "Untitled Project";
-  const handleSendMessage = (content:string) => {alert("Pending Send message Implementation" )};
-  const handleFilesChange = (files:Record<string, string>) => {alert("Pending Files Change Implementation")};
-  const handleModelChange = (modelId:string) => {alert("Pending Model Change Implementation")};
-  const handleRename = (id:string) => {alert("Pending Rename Implementation")};
-  const handleDelete = () => {alert("Pending Delete Implementation")};
-  const handleBackToCurrent = () => {alert("Pending Back to Current Implementation")};
+
+  const handleSendMessage = useCallback(
+    async (
+      content: string,
+      images?: ImageAttachment[],
+      isAutoHeal?: boolean
+    ) => {
+
+      if (!isAutoHeal) {
+        autoHealAttemptRef.current = 0;
+      }
+
+      if (viewingVersion !== null) {
+        handleBackToCurrent();
+      }
+
+      justGenerationRef.current = false;
+
+      const userMessage: ChatMessage = {
+        id: `msg-${Date.now()}-user`,
+        role: "user",
+        content,
+        timestamp: new Date().toISOString(),
+        images: images && images.length > 0 ? images : undefined,
+      };
+
+      setMessages(prev => [...prev, userMessage]);
+      setIsStreaming(true);
+      isStreamingRef.current = true;
+
+      const aiMessageId = `msg-${Date.now()}-assistant`;
+      const aiMessage: ChatMessage = {
+        id: aiMessageId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date().toISOString(),
+        model: selectedModelId,
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
+      try {
+
+        const token = await getToken();
+
+        if (!token) {
+          throw new Error("Failed to get auth token");
+        }
+
+        const response = await fetch(`${WORKER_URL}/api/chat/${projectId}`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: content,
+            model: selectedModelId,
+            images: images && images.length > 0 ? images : undefined,
+          }),
+        });
+
+
+        if (!response.ok) {
+          const errorText = await response.json().catch(() => ({
+            error: "Unknown error",
+          }));
+          const typed = errorText as {
+            error?: string;
+            code?: string;
+            retryAfter?: number;
+          };
+        }
+
+        if (!response.body) {
+          throw new Error("No response body");
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+
+            if (line.startsWith("event: ")) {
+              continue;
+            }
+            if (line.startsWith("data: ")) {
+              continue;
+            }
+            const data = line.slice(6);
+            if (!data) continue;
+            try {
+              const event = JSON.parse(data);
+              if (event.text !== undefined) {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === aiMessageId ? { ...msg, content: msg.content + event.text } : msg,
+                  )
+                );
+              }
+              if (event.files) {
+                const newFiles = filesToRecord(event.files);
+                setFiles(newFiles);
+                currentFilesRef.current = newFiles;
+                lastSavedFileRef.current = newFiles;
+                justGenerationRef.current = true;
+              }
+              if (event.creditsRemaining !== undefined) {
+                setCreditRemaining(event.creditsRemaining);
+              }
+              if (event.versionId) {
+                setProject((prev) => prev ? {
+                  ...prev,
+                  currentVersionId: event.currentVersionId + 1,
+                  updatedAt: new Date().toISOString(),
+                }
+                  : prev,
+                );
+                const versionNumber = parseInt(
+                  event.versionId.replace("v", ""), 10,
+                );
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === aiMessageId ? { ...msg, versionNumber } : msg,
+                  ),
+                );
+                refreshVersion();
+              }
+              if (event.code && event.message) {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === aiMessageId ? {
+                      ...msg,
+                      content: `Error: ${event.message}`,
+                    }
+                      : msg,
+                  ),
+                );
+                toast.error(event.message as string);
+
+              }
+            } catch {
+
+            }
+          }
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        const lowerError = errorMessage.toLowerCase();
+
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiMessageId
+              ? { ...msg, content: `Error: ${errorMessage}` }
+              : msg,
+          ),
+        );
+        toast.error(errorMessage);
+      } finally {
+        setIsStreaming(false);
+        isStreamingRef.current = false;
+      }
+    }, [projectId,
+    selectedModelId,
+    getToken,
+    projectId, handleBackToCurrent, refreshVersion, viewingVersion],);
+
+  const handleFilesChange = (files: Record<string, string>) => { alert("Pending Files Change Implementation") };
+  const handleModelChange = (modelId: string) => { alert("Pending Model Change Implementation") };
+  const handleRename = (id: string) => { alert("Pending Rename Implementation") };
+  const handleDelete = () => { alert("Pending Delete Implementation") };
   return (
-      <EditorLayout
+    <EditorLayout
       projectId={projectId}
       projectName={projectName}
       files={files}
@@ -203,7 +381,7 @@ const EditorPage = ({params}:{params:Promise<{projectId:string}>}) => {
       onRename={handleRename}
       onDelete={handleDelete}
       onBackToCurrent={handleBackToCurrent}
-       />
+    />
   )
 }
 export function EditorLayoutSkeleton() {
@@ -218,9 +396,9 @@ export function EditorLayoutSkeleton() {
           </div>
         </div>
         <div className="mx-auto">
-          <Skeleton className="h-8 w-48 rounded-full" /> 
+          <Skeleton className="h-8 w-48 rounded-full" />
         </div>
-        <div  className='flex items-center gap-2'>
+        <div className='flex items-center gap-2'>
           <Skeleton className="h-8 w-16 rounded-md hidden sm:block" />
           <Skeleton className="size-7 rounded-full" />
         </div>

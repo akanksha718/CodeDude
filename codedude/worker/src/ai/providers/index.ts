@@ -14,7 +14,7 @@ export interface ModelConfig{
     creditCost:number;
     tier:"fast"|"premium";
     speed:"fast"|"medium"|"very-fast";
-    quality:"high"|"medium";
+    quality:"high"|"good";
     description:string;
     supportsVision:boolean;
     maxOutputTokens:number;
@@ -40,7 +40,7 @@ export const MODEL_REGISTRY:Record<string,ModelConfig> = {
         creditCost:1,
         tier:"fast",
         speed:"fast",
-        quality:"medium",
+        quality:"good",
         description:"Claude Haiku 3.5 is a fast and efficient model for straightforward tasks.",
         supportsVision:true,
         maxOutputTokens:16384,
@@ -64,7 +64,7 @@ export const MODEL_REGISTRY:Record<string,ModelConfig> = {
         creditCost:1,
         tier:"fast",
         speed:"fast",
-        quality:"medium",
+        quality:"good",
         description:"GPT-4o Mini is a fast and efficient model for straightforward tasks.",
         supportsVision:true,
         maxOutputTokens:16384
@@ -76,7 +76,7 @@ export const MODEL_REGISTRY:Record<string,ModelConfig> = {
         creditCost:1,
         tier:"fast",
         speed:"very-fast",
-        quality:"medium",
+        quality:"good",
         description:"Gemini 2.0 Flash is a fast and efficient model for straightforward tasks.",
         supportsVision:true,
         maxOutputTokens:16384
@@ -112,7 +112,7 @@ export const MODEL_REGISTRY:Record<string,ModelConfig> = {
         creditCost:1,
         tier:"fast",
         speed:"fast",
-        quality:"medium",
+        quality:"good",
         description:"DeepSeek R1 is a fast and efficient model for straightforward tasks.",
         supportsVision:false,
         maxOutputTokens:16384,

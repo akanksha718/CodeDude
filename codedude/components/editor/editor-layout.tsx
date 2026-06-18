@@ -143,7 +143,16 @@ export const EditorLayout = ({
             <div className='shrink-0 overflow-hidden'
                 style={{ width: `${chatWidthPercent}%`, minWidth: MIN_CHAT_PX }}
             >
-                <ChatPanel />
+                <ChatPanel
+                messages={messages}
+                isStreaming={isStreaming}
+                onSendMessage={onSendMessage}
+                creditsRemaining={creditsRemaining}
+                isCreditExhausted={isCreditExhausted}
+                selectedModelId={selectedModelId}
+                onModelChange={onModelChange}
+                userPlan={userPlan}
+                 />
             </div>
             <div className={cn(
                 "panel-resize-handle shrink-0",

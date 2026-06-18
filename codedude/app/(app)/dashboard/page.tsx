@@ -11,33 +11,29 @@ import { useAuth } from '@clerk/nextjs';
 import { Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription,AlertDialogFooter ,AlertDialogCancel, AlertDialogAction} from '@/components/ui/alert-dialog';
-
 import React, { useEffect } from 'react'
 import { toast } from 'sonner';
-
 
 
 const Dashboardpage = () => {
   const { getToken } = useAuth();
   const router = useRouter();
-
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
-
+// Record is a utility type that lets you create an object type with specific key and value types.
   const [projectFiles, setProjectFiles] = React.useState<
     Record<string, Record<string, string> | undefined>>({});
-
-
   const [deleteTarget, setDeleteTarget] = React.useState<string | null>(null);
   const [renameTarget, setRenameTarget] = React.useState<string | null>(null);
   const [renameValue, setRenameValue] = React.useState("");
+  // useRef creates a reference object that persists across re-renders. without causing the component to re-render when the value changes.
   const renameInputRef = React.useRef<HTMLInputElement>(null);
 
-
-
-
-
+  // Normally, every time a component re-renders, functions are recreated.
+  // useCallback memoizes the function, so it only gets recreated if its dependencies change. 
+  // This is important for functions that are passed as props to child components or used in useEffect, 
+  // to prevent unnecessary re-renders or effect executions.
   const fetchProjects = React.useCallback(async () => {
     try {
       const client = createApiClient(getToken);
@@ -55,16 +51,13 @@ const Dashboardpage = () => {
     fetchProjects();
   }, [fetchProjects]);
 
-
   useEffect(() => {
     if(projects.length === 0) return;
-
     let mounted = true;
     const client = createApiClient(getToken);
 
     projects.forEach((project) => {
       if(projectFiles[project.id] !== undefined) return;
-
       client.projects
       .getFiles(project.id)
       .then((data) => {
@@ -91,11 +84,15 @@ const Dashboardpage = () => {
     if(!project) return;
     setRenameTarget(id);
     setRenameValue(project.name);
+    // setTimeout schedules some code to run later.
     setTimeout(() => {
+      // Selects all text inside the input.
       renameInputRef.current?.select();
+      // Moves the cursor into the input.Equivalent to the user clicking the input.
       renameInputRef.current?.focus();
     }, 50);
   };
+
   async function confirmRename() {
     if(!renameTarget) return;
     const trimmed = renameValue.trim();
@@ -121,6 +118,7 @@ const Dashboardpage = () => {
       toast.error(message);
     }
   }
+
   async function confirmDelete() {
     if(!deleteTarget) return;
     try{
@@ -140,9 +138,11 @@ const Dashboardpage = () => {
       setDeleteTarget(null);
     }
   }
+
   const handleDelete = async (id :string) => {
     setDeleteTarget(id);
   }
+
   const handleCreateProjecct = async (data :{ name: string ;model: string ;description?: string }) => {
     try {
       const client = createApiClient(getToken);
@@ -162,6 +162,7 @@ const Dashboardpage = () => {
       toast.error(message);
     }
   }
+  
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex  items-center justify-between">
