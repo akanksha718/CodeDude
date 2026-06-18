@@ -26,7 +26,7 @@ app.use("/api/*",authMiddleware);
 app.get("/api/health", (c) => {
     return c.json({ status: "ok" ,timestamp: new Date().toISOString()});
 });
-app.route("/api/projects", projectRoutes);
+app.route("/api/project", projectRoutes);
 app.route("/api/chat", chatRoutes);
 app.route("/api/projects/:id/versions", versionsRoutes);
 app.route("/api/credits", creditsRoutes);

@@ -10,7 +10,7 @@ import { Loader2, FileCode, Check, Sparkles, BrainCircuit } from "lucide-react";
 export interface GenerationProgressProps {
     content: string;
     isStreaming: boolean;
-    changedFiles: string[];
+    changedFiles: string[]|undefined;
 }
 
 interface FileProgress {
@@ -125,21 +125,45 @@ export function GenerationProgress({ content, isStreaming, changedFiles }: Gener
                         <div
                             key={file.path}
                             className={cn(
-                                "flex items-center gap-2 px-3.5 py-2",
-                                file.status === "done" && "bg-emerald-100 text-emerald-800"
+                                "flex items-center gap-2.5 px-3.5 py-1.5 transition-colors",
+                                file.status === "writing" && isStreaming && "bg-primary/5",
                             )}
                         >
-                            {file.status === "done" ? (
-                                <Check className="size-3.5" />
+                            {file.status === "done" || !isStreaming ? (
+                                <div className="flex size-4 items-center justify-center rounded-full bg-emerald-500/10">
+                                    <Check className="size-2.5 text-emerald-500" />
+                                </div>
                             ) : (
-                                <Loader2 className="size-3.5 animate-spin" />
+                                <Loader2 className="size-4 animate-spin text-primary" />
                             )}
-                            <span className="text-sm">{file.path}</span>
+                            <span className={cn(
+                                "min-w-0 flex-1 truncate text-xs font-mono",
+                                file.status === "writing" && isStreaming ? "text-foreground" : "text-muted-foreground",
+                            )}
+                                title={file.path}
+                            >{file.path}
+                            </span>
+                            {file.status === "writing" && isStreaming && (
+                                <span className="shrink-0 text-[10px] text-primary font-medium">
+                                    Writing...
+                                </span>
+                            )}
                         </div>
-
                     ))
                 }
             </div>
+            {
+                isStreaming && hasFiles && (
+                    <div className="h-[3px] bg-secondary/50">
+                        <div
+                        className="h-full rounded-r-full bg-primary transition-all duration-500 ease-out"
+                        style={{ width: `${files.length>0 ? (doneCount / files.length) * 100 : 0}%`, }}
+                        />
+                    </div>
+                )
+            }
+
+
 
         </div>
     )

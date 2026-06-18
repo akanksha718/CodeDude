@@ -14,12 +14,23 @@ import { ProjectFile } from '@/types/project';
 import { useCallback } from 'react';
 import { ImageAttachment } from '@/types/chat';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
+import { PreviewSkeleton } from '@/components/editor/preview-skeleton';
 
 
 /**
  * @param content - Raw file content that may have markdown fences
  * @returns The content without markdown fences
  */
+
+const PreviewPanel = dynamic(
+  ()=>
+    import('@/components/editor/preview-panel').then((mod) => mod.PreviewPanel),
+  {
+    ssr: false,
+    loading: () => <PreviewSkeleton/>,
+  },
+);
 
 
 function stripMarkdownFences(content: string): string {
@@ -174,9 +185,6 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
 
   const handleBackToCurrent = () => { alert("Pending Back to Current Implementation") };
 
-  if (isLoading) {
-    return <EditorLayoutSkeleton />
-  }
   const projectName = project?.name || "Untitled Project";
 
   const handleSendMessage = useCallback(
@@ -357,6 +365,9 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
   const handleModelChange = (modelId: string) => { alert("Pending Model Change Implementation") };
   const handleRename = (id: string) => { alert("Pending Rename Implementation") };
   const handleDelete = () => { alert("Pending Delete Implementation") };
+  if (isLoading) {
+    return <EditorLayoutSkeleton />
+  }
   return (
     <EditorLayout
       projectId={projectId}
@@ -371,7 +382,7 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
       isCreditExhausted={isCreditExhausted}
       userPlan={userPlan}
       viewingVersion={viewingVersion}
-      previewPanel={<div>Preview Panel</div>}
+      previewPanel={<PreviewPanel files={files} onError={()=>{alert("Error occurred")}} />}
       codeEditorPanel={<div>Code Editor Panel</div>}
       historyPanel={<div>History Panel</div>}
       onSendMessage={handleSendMessage}
