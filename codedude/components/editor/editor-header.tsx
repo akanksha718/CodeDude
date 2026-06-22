@@ -77,17 +77,18 @@ export const EditorHeader = ({
           </span>
         </div>
       </div>
-      <div className="hidden  md:block absolute left-1/2 -translate-x-1/2">
+        <div className="hidden md:block absolute left-1/2 -translate-x-1/2">
         <EditorTabs
           activeTab={activeTab}
           onTabChange={onTabChange}
         />
-        <div className="mx-auto md:hidden">
+        </div>
+        <div className="md:hidden absolute left-1/2 -translate-x-1/2">
           <div className="flex items-center gap-0.5 rounded-full bg-secondary/60 p-0.5">
             <button
               onClick={() => onMobilePanelChange("chat")}
               className={cn(
-                "flex cursor-pointer items-center gap-1 rounded-full px-3 py-1.3 text-sm font-medium transition-all duration-150",
+                "flex cursor-pointer items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150",
                 mobilePanel === "chat" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}>
               <MessageSquare className="size-3" />
@@ -109,7 +110,6 @@ export const EditorHeader = ({
             </button>
           </div>
         </div>
-      </div>
       <div className="ml-auto flex items-center gap-1.5 shrink-0 sm:gap-2">
           {
             activeTab === "preview" && (

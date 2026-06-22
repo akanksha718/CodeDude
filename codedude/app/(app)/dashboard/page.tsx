@@ -147,14 +147,12 @@ const Dashboardpage = () => {
     try {
       const client = createApiClient(getToken);
       const response = await client.projects.create(data);
-      try{
-        sessionStorage.setItem(
-          `pendingPrompt:${response.project.id}`,
-           data.description?.trim() || "");
-      }catch(err){
-        console.warn("Failed to save pending prompt in sessionStorage", err);
-      }
-      router.push(`/project/${response.project.id}`);
+      const description = data.description?.trim();
+      const path = description
+        ? `/project/${response.project.id}?prompt=${encodeURIComponent(description)}`
+        : `/project/${response.project.id}`;
+      router.push(path);
+      setDialogOpen(false);
 
     } catch (error) {
       console.error("Failed to create project", error);

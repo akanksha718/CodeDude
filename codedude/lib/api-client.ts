@@ -35,9 +35,19 @@ async function authenticatedFetch<T>(
         }
     });
     if (!response.ok) {
-        const errorBody = (await response.json().catch(() => ({
-            error: 'Unknown error',
-        }))) as { error: string; code?: string; retryAfter?: number };
+        const responseText = await response.text().catch(() => '');
+        let errorBody: { error: string; code?: string; retryAfter?: number };
+        try {
+            errorBody = JSON.parse(responseText) as {
+                error: string;
+                code?: string;
+                retryAfter?: number;
+            };
+        } catch {
+            errorBody = {
+                error: responseText || response.statusText || `Request failed (${response.status})`,
+            };
+        }
 
         if (response.status === 429) {
             const retryAfter = errorBody.retryAfter || 60; // Default to 60 seconds if not provided
@@ -96,9 +106,7 @@ export function createApiClient(getToken: GetTokenFunction) {
             }>(getToken, "/api/credits"),
         },
         versions: {
-            // ✅ FIX 2: Added a trailing slash so Hono perfectly matches the route base array
-            list: (projectId: string) => 
-                authenticatedFetch<{ versions: VersionMeta[] }>(getToken, `/api/projects/${projectId}/versions/`),
+            list: (projectId: string) => authenticatedFetch<{ versions: VersionMeta[] }>(getToken, `/api/projects/${projectId}/versions`),
         },
     };
 }

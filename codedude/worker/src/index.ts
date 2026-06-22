@@ -28,6 +28,7 @@ app.get("/api/health", (c) => {
 });
 app.route("/api/project", projectRoutes);
 app.route("/api/chat", chatRoutes);
+// app.route("/api/version", versionsRoutes);
 app.route("/api/projects/:id/versions", versionsRoutes);
 app.route("/api/credits", creditsRoutes);
 

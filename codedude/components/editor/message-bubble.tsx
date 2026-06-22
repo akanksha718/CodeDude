@@ -166,62 +166,110 @@ export function MessageBubble({
 
     }
     return (
-        <div
-            className={cn(
-                "group flex gap-3 animate-fade-in",
-                isUser ? "flex-row-reverse" : "flex-row"
-            )}
-        >
+        <>
             <div
                 className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-lg",
-                    isUser ? "bg-primary text-primary-foreground" : "border border-border/50 bg-secondary",
+                    "group flex w-full gap-3 animate-fade-in",
+                    isUser ? "flex-row-reverse" : "flex-row"
                 )}
             >
-                {
-                    isUser ? <User className="size-3.5" /> : <Bot className="size-3.5" />
-                }
-            </div>
-            <div
-                className={cn(
-                    "flex max-w-[85%] flex-col gap-1",
-                    isUser ? "items-end" : "items-start"
-                )}>
-                {
-                    !isUser && message.model && (
-                        <Badge
-                            variant="secondary"
-                            className="text-[10px] px-1.5 py-0 font-normal"
+                <div
+                    className={cn(
+                        "flex size-7 shrink-0 items-center justify-center rounded-lg",
+                        isUser ? "bg-primary text-primary-foreground" : "border border-border/50 bg-secondary",
+                    )}
+                >
+                    {
+                        isUser ? <User className="size-3.5" /> : <Bot className="size-3.5" />
+                    }
+                </div>
+                <div
+                    className={cn(
+                        "flex min-w-0 max-w-[85%] flex-col gap-1",
+                        isUser ? "items-end" : "items-start"
+                    )}>
+                    {
+                        !isUser && message.model && (
+                            <Badge
+                                variant="secondary"
+                                className="text-[10px] px-1.5 py-0 font-normal"
+                            >
+                                {formatModelName(message.model)}
+                            </Badge>
+                        )
+                    }
+
+                    {
+                        isUser && message.images && message.images?.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 justify-end">
+                                {
+                                    message.images.map((image, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setSelectedText(image)}
+                                            type="button"
+                                            className="size-16 cursor-pointer overflow-hidden rounded-lg border border-border/50 transition-transform duration-150"
+
+                                        >
+                                            <img
+                                                src={`data:${image.mediaType};base64,${image.base64}`}
+                                                alt={image.name || `Attached image ${index + 1}`}
+                                                className="size-full object-cover"
+                                            />
+                                        </button>
+                                    ))
+                                }
+                            </div>
+                        )
+                    }
+
+                    {isUser ? (
+                        <div
+                            className="rounded-2xl rounded-tr-md bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground shadow-sm"
                         >
-                            {formatModelName(message.model)}
-                        </Badge>
-                    )
-                }
-
-                {
-                    isUser && message.images && message.images?.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 justify-end">
-                            {
-                                message.images.map((image, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => setSelectedText(image)}
-                                        type="button"
-                                        className="size-16 cursor-pointer overflow-hidden rounded-lg border border-border/50 transition-transform duration-150"
-
-                                    >
-                                        <img
-                                            src={`data:${image.mediaType};base64,${image.base64}`}
-                                            alt={image.name || `Attached image ${index + 1}`}
-                                            className="size-full object-cover"
-                                        />
-                                    </button>
-                                ))
-                            }
+                            <p
+                                className="whitespace-pre-wrap break-words"
+                            >{displayContent}</p>
                         </div>
-                    )
-                }
+                    ) : (
+                        <div className="flex w-full flex-col gap-2">
+                            {
+                                displayContent && (
+                                    <div className="rounded-2xl rounded-tl-md border border-border/50 bg-card px-4 py-3 text-sm leading-relaxed shadow-sm">
+                                        <div
+                                            className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_code]:rounded [&_code]:bg-secondary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border/50"
+                                        >
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                            >
+                                                {displayContent}
+                                            </ReactMarkdown>
+                                            {
+                                                isStreaming && !showProgress && (
+                                                    <span
+                                                        className="ml-0.5 inline-block h-4 w-[2px] animate-pulse bg-primary align-middle"
+                                                    />
+                                                )
+                                            }
+                                        </div>
+                                    </div>
+                                )
+                            }
 
+                            {(showProgress || isThinking) && (
+                                <GenerationProgress
+                                    content={message.content}
+                                    isStreaming={!!isStreaming}
+                                    changedFiles={message.changedFiles}
+                                />
+                            )}
+                        </div>
+                    )}
+                    <span className="px-1 text-[10px] text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100">
+                        {formatTime(message.timestamp)}
+
+                    </span>
+                </div>
             </div>
             <Dialog
                 open={!!selectedText}
@@ -257,55 +305,7 @@ export function MessageBubble({
                     }
                 </DialogContent>
             </Dialog>
-            {isUser ? (
-                <div
-                    className="rounded-2xl rounded-tr-md bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground shadow-sm"
-                >
-                    <p
-                        className="whitespace-pre-wrap break-words"
-                    >{displayContent}</p>
-                </div>
-            ) : (
-                <div className="flex flex-col gap-2">
-                    {
-                        displayContent && (
-                            <div className="rounded-2xl rounded-tl-md border-border/50 bg-card px-4 py-3 text-sm leading-relaxed shadow-sm">
-                                <div
-                                    className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_code]:rounded [&_code]:bg-secondary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border/50"
-                                >
-                                    <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
-                                    >
-                                        {displayContent}
-                                    </ReactMarkdown>
-                                    {
-                                        isStreaming && !showProgress && (
-                                            <span
-                                                className="ml-0.5 inline-block h-4 w-[2px] animate-pulse bg-primary align-middle"
-                                            />
-                                        )
-                                    }
-                                </div>
-                            </div>
-                        )
-                    }
-
-                    {(showProgress || isThinking) && (
-                        <GenerationProgress
-                            content={message.content}
-                            isStreaming={!!isStreaming}
-                            changedFiles={message.changedFiles}
-                        />
-                    )}
-                </div>
-            )}
-            <span className="px-1 text-[10px] text-muted-foreground/60 opacity-0 transition-opacity group-hover:opacity-100">
-                {formatTime(message.timestamp)}
-
-            </span>
-        </div>
-    )
-
-
-
+        </>
+    );
 }
+

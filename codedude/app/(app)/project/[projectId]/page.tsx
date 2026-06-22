@@ -2,7 +2,7 @@
 import { EditorLayout } from '@/components/editor'
 import { useAuth } from '@clerk/nextjs'
 import React, { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useRef } from 'react'
 import { Project } from '@/types/project'
 import { ChatMessage } from '@/types/chat';
@@ -16,7 +16,7 @@ import { ImageAttachment } from '@/types/chat';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import { PreviewSkeleton } from '@/components/editor/preview-skeleton';
-
+import { EditorSkeleton } from '@/components/editor/editor-skeleton';
 
 /**
  * @param content - Raw file content that may have markdown fences
@@ -24,11 +24,19 @@ import { PreviewSkeleton } from '@/components/editor/preview-skeleton';
  */
 
 const PreviewPanel = dynamic(
-  ()=>
+  () =>
     import('@/components/editor/preview-panel').then((mod) => mod.PreviewPanel),
   {
     ssr: false,
-    loading: () => <PreviewSkeleton/>,
+    loading: () => <PreviewSkeleton />,
+  },
+);
+
+const CodeEditorPanel = dynamic(
+  () => import('@/components/editor/code-editor-panel').then((mod) => mod.CodeEditorPanel),
+  {
+    ssr: false,
+    loading: () => <EditorSkeleton />,
   },
 );
 
@@ -80,14 +88,14 @@ function recordToFiles(record: Record<string, string>): ProjectFile[] {
 
 const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
   const { projectId } = use(params);
+  const searchParams = useSearchParams();
   const { getToken } = useAuth();
   const router = useRouter();
   const autoHealAttemptRef = useRef(0);
+  const pendingPromptSentRef = useRef(false);
   const justGenerationRef = useRef(false);
   const isStreamingRef = useRef(false);
   const MAX_AUTO_HEAL_ATTEMPTS = 3;
-  const pendingPromptRef = useRef<string | null>(null);
-  const handleSendMessageRef = useRef<(content: string) => void>(() => { });
   const [project, setProject] = useState<Project | null>(null);
   const [files, setFiles] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -150,17 +158,6 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
           setActiveFile("src/App.tsx");
         } else if (filePaths.length > 0) {
           setActiveFile(filePaths[0]);
-        }
-
-
-        try {
-          const storageKey = `pendingPrompt:${projectId}`;
-          const pendingPrompt = sessionStorage.getItem(storageKey);
-          if (pendingPrompt) {
-            pendingPromptRef.current = pendingPrompt;
-            sessionStorage.removeItem(storageKey);
-          }
-        } catch (e) {
         }
       } catch (e) {
         console.error("Failed to fetch project data:", e);
@@ -258,6 +255,7 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
             code?: string;
             retryAfter?: number;
           };
+          throw new Error(typed.error || "Failed to send message");
         }
 
         if (!response.body) {
@@ -275,14 +273,11 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
           buffer = lines.pop() || "";
 
           for (const line of lines) {
-
-            if (line.startsWith("event: ")) {
+            const trimmedLine = line.trim();
+            if (!trimmedLine.startsWith("data: ")) {
               continue;
             }
-            if (line.startsWith("data: ")) {
-              continue;
-            }
-            const data = line.slice(6);
+            const data = trimmedLine.slice(6);
             if (!data) continue;
             try {
               const event = JSON.parse(data);
@@ -339,6 +334,21 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
             }
           }
         }
+
+        try {
+          const client = createApiClient(getToken);
+          const [chatResponse, filesResponse] = await Promise.all([
+            client.chats.getHistory(projectId),
+            client.projects.getFiles(projectId),
+          ]);
+          setMessages(chatResponse.messages);
+          const filesRecord = filesToRecord(filesResponse.files);
+          setFiles(filesRecord);
+          currentFilesRef.current = filesRecord;
+          lastSavedFileRef.current = filesRecord;
+        } catch (refreshError) {
+          console.error("Failed to refresh project after generation:", refreshError);
+        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
@@ -361,6 +371,46 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
     getToken,
     projectId, handleBackToCurrent, refreshVersion, viewingVersion],);
 
+  useEffect(() => {
+    pendingPromptSentRef.current = false;
+  }, [projectId]);
+
+  useEffect(() => {
+    if (isLoading || isStreaming || !project || pendingPromptSentRef.current) {
+      return;
+    }
+
+    let prompt = searchParams.get("prompt")?.trim() || null;
+    if (!prompt) {
+      try {
+        prompt = sessionStorage.getItem(`pendingPrompt:${projectId}`)?.trim() || null;
+        if (prompt) {
+          sessionStorage.removeItem(`pendingPrompt:${projectId}`);
+        }
+      } catch {
+      }
+    }
+
+    if (!prompt) {
+      return;
+    }
+
+    pendingPromptSentRef.current = true;
+    void handleSendMessage(prompt).finally(() => {
+      if (searchParams.get("prompt")) {
+        router.replace(`/project/${projectId}`, { scroll: false });
+      }
+    });
+  }, [
+    isLoading,
+    isStreaming,
+    project,
+    projectId,
+    searchParams,
+    handleSendMessage,
+    router,
+  ]);
+
   const handleFilesChange = (files: Record<string, string>) => { alert("Pending Files Change Implementation") };
   const handleModelChange = (modelId: string) => { alert("Pending Model Change Implementation") };
   const handleRename = (id: string) => { alert("Pending Rename Implementation") };
@@ -382,9 +432,23 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
       isCreditExhausted={isCreditExhausted}
       userPlan={userPlan}
       viewingVersion={viewingVersion}
-      previewPanel={<PreviewPanel files={files} onError={()=>{alert("Error occurred")}} />}
-      codeEditorPanel={<div>Code Editor Panel</div>}
-      historyPanel={<div>History Panel</div>}
+      previewPanel={<PreviewPanel files={files} onError={() => { alert("Error occurred") }} />}
+      codeEditorPanel={<CodeEditorPanel
+        files={files}
+        activeFile={activeFile}
+        onActiveFileChange={setActiveFile}
+        onFileContentChange={(path, content) => {
+          setFiles((prev) => ({ ...prev, [path]: content }))
+        }}
+      />}
+      historyPanel={<CodeEditorPanel
+        files={files}
+        activeFile={activeFile}
+        onActiveFileChange={setActiveFile}
+        onFileContentChange={(path, content) => {
+          setFiles((prev) => ({ ...prev, [path]: content }))
+        }}
+      />}
       onSendMessage={handleSendMessage}
       onFilesChnage={handleFilesChange}
       onActiveFileChange={setActiveFile}

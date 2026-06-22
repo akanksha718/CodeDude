@@ -35,19 +35,19 @@ export function ChatPanel({
     }, [messages, isStreaming]);
 
     return (
-        <div className="flex h-full flex-col bg-backgroundgap">
-            <ScrollArea className="flex-1 overflow-hidden">
+        <div className="flex h-full min-h-0 flex-col bg-background">
+            <ScrollArea className="min-h-0 flex-1">
                 <div className="flex flex-col gap-5 p-4">
                     {
-                        messages.length == 0 && (
-                            <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+                        messages.length === 0 && (
+                            <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
                                 <div className="relative mb-5">
                                     <div className="absolute inset-0 animate-pulse rounded-full bg-primary/20 blur-xl" />
-                                    <div className="relative flex size-14 items-center justify-centerrounded-2xl border border-primary/20 bg-primary/10 " >
+                                    <div className="relative flex size-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
                                         <Sparkles className="size-7 text-primary" />
                                     </div>
                                 </div>
-                                <h3 className="text-base font-semibold text-secondary">What do you want to build?</h3>
+                                <h3 className="text-base font-semibold">What do you want to build?</h3>
                                 <p className="mt-2 max-w-[260px] text-sm leading-relaxed text-muted-foreground">
                                     Describe your project
                                 </p>
@@ -79,16 +79,16 @@ export function ChatPanel({
                             />
                         ))
                     }
+                    <div ref={messagesEndRef} />
                 </div>
-                
-            </ScrollArea >
-            <ChatInput 
+            </ScrollArea>
+            <ChatInput
                 onSend={onSendMessage}
                 creditsRemaining={creditsRemaining}
                 isStreaming={isStreaming}
                 isCreditExhausted={isCreditExhausted}
                 supportVision={supportVision}
-                />
-        </div >
+            />
+        </div>
     );
-}   
+}

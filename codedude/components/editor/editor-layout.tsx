@@ -121,7 +121,61 @@ export const EditorLayout = ({
 
         }, [isDragging],);
 
-    return <div className="flex flex-col h-full w-full overflow-hidden">
+    const chatPanel = (
+        <ChatPanel
+            messages={messages}
+            isStreaming={isStreaming}
+            onSendMessage={onSendMessage}
+            creditsRemaining={creditsRemaining}
+            isCreditExhausted={isCreditExhausted}
+            selectedModelId={selectedModelId}
+            onModelChange={onModelChange}
+            userPlan={userPlan}
+        />
+    );
+
+    const editorContent = (
+        <div className="relative flex min-h-0 flex-1 overflow-hidden">
+            <div className={cn("absolute inset-0", activeTab === "preview" ? "z-10 visible" : "z-0 invisible")}>
+                <div
+                    className={cn("h-full transition-all duration-200",
+                        deviceMode !== "desktop" ? "flex items-center justify-center overflow-auto bg-muted/30 p-6" : "",)}>
+                    <div
+                        className={cn(
+                            "h-full max-w-full transition-all duration-200",
+                            deviceMode !== "desktop" ?
+                                "shrink-0 overflow-hidden rounded-lg border border-border shadow-lg" : "w-full")}
+                        style={deviceMode !== "desktop" ? { width: deviceMode === "tablet" ? 768 : 375 } : undefined}>
+                        <PanelErrorBoundary name="Preview">
+                            {previewPanel}
+                        </PanelErrorBoundary>
+                    </div>
+                </div>
+            </div>
+            <div className={cn("absolute inset-0",
+                activeTab === "code" ? "z-10 visible" : "z-0 invisible",
+            )}>
+                <PanelErrorBoundary name="Code">
+                    {codeEditorPanel}
+                </PanelErrorBoundary>
+            </div>
+            {historyPanel && (
+                <div
+                    className={cn("absolute inset-0 bg-background",
+                        activeTab === "history" ? "z-10 visible" : "z-0 invisible",
+                    )}>
+                    {historyPanel}
+                </div>
+            )}
+            {
+                isDragging && (
+                    <div className="absolute inset-0 z-20 cursor-col-resize " />
+                )
+            }
+        </div>
+    );
+
+    return <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
         <EditorHeader
             projectName={projectName}
             projectId={projectId}
@@ -138,21 +192,12 @@ export const EditorLayout = ({
             deviceMode={deviceMode}
             onDeviceModeChange={setDeviceMode}
         />
-        <div className={cn("hidden md:flex flex-1 overflow-hidden ", isDragging && "select-none")}
+        <div className={cn("hidden min-h-0 flex-1 overflow-hidden md:flex", isDragging && "select-none")}
             ref={containerRef}>
-            <div className='shrink-0 overflow-hidden'
+            <div className='flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r border-border'
                 style={{ width: `${chatWidthPercent}%`, minWidth: MIN_CHAT_PX }}
             >
-                <ChatPanel
-                messages={messages}
-                isStreaming={isStreaming}
-                onSendMessage={onSendMessage}
-                creditsRemaining={creditsRemaining}
-                isCreditExhausted={isCreditExhausted}
-                selectedModelId={selectedModelId}
-                onModelChange={onModelChange}
-                userPlan={userPlan}
-                 />
+                {chatPanel}
             </div>
             <div className={cn(
                 "panel-resize-handle shrink-0",
@@ -162,48 +207,15 @@ export const EditorLayout = ({
                 onPointerUp={handlePointerUp}
                 onPointerMove={handlePointerMove}
             />
-            <div className="relative flex-1 overflow-hidden ">
-                <div className={cn("absolute inset-0", activeTab === "preview" ? "z-10 visible" : "z-0 invisible")}>
-                    <div
-                        className={cn("h-full transition-all duration-200",
-                            deviceMode !== "desktop" ? "flex items-center justify-center overflow-auto bg-muted/30 p-6" : "",)}>
-                        <div
-                            className={cn(
-                                "h-full max-w-full transition-all duration-200",
-                                deviceMode !== "desktop" ?
-                                    "shrink-0 overflow-hidden rounded-lg border border-border shadow-lg" : "w-full")}
-                            style={deviceMode !== "desktop" ? { width: deviceMode === "tablet" ? 768 : 375 } : undefined}>
-                            <PanelErrorBoundary name="Preview">
-                                {previewPanel}
-                            </PanelErrorBoundary>
-                        </div>
-                    </div>
-                    <div className={cn("absolute inset-0",
-                        activeTab === "code" ? "z-10 visible" : "z-0 invisible",
-                    )}>
-                        <PanelErrorBoundary name="Code">
-                            {codeEditorPanel}
-                        </PanelErrorBoundary>
-                    </div>
-                    {historyPanel && (
-                        <div 
-                        className={cn("absolute inset-0 bg-background",
-                            activeTab === "history" ? "z-10 visible" : "z-0 invisible",
-                        )}>
-                            
-                                {historyPanel}
-                          
-                        </div>
-                    )} 
-
-                    {
-                        isDragging && (
-                            <div className="absolute inset-0 z-20 cursor-col-resize " />
-                        )
-                    }
-
-                </div>
-            </div>
+            {editorContent}
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:hidden">
+            {mobilePanel === "chat" ? (
+                chatPanel
+            ) : (
+                editorContent
+            )}
         </div>
     </div>
+
 };

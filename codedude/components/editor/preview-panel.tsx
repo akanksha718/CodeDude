@@ -3,7 +3,7 @@
 "use client";
 
 import { SandpackLayout, SandpackPreview, SandpackProvider, useSandpack } from "@codesandbox/sandpack-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useEffect } from "react";
 
 export interface PreviewPanelProps {
@@ -151,14 +151,23 @@ export function PreviewPanel({ files, onError }: PreviewPanelProps) {
 
     const sandpackFiles = toSandpackFiles(files);
     const dependencies = extractDependencies(files);
+    const previewKey = useMemo(
+        () =>
+            Object.entries(files)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([path, content]) => `${path}:${content.length}:${content.slice(0, 80)}`)
+                .join("|"),
+        [files],
+    );
 
     return (
         <div className="sandpack-stretch h-full w-full">
             <SandpackProvider
+                key={previewKey}
                 template="react-ts"
                 files={sandpackFiles}
                 theme="dark"
-                options={{ externalResources: ["https://cdn.tailwinfcss.com"] }}
+                options={{ externalResources: ["https://cdn.tailwindcss.com"] }}
                 customSetup={{
                     dependencies: dependencies,
                 }}

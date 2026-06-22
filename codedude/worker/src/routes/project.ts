@@ -154,7 +154,7 @@ projectRoutes.post("/", async (c) => {
     await Promise.all([
         c.env.METADATA.put(`project:${projectId}`, JSON.stringify(project)),
         c.env.METADATA.put(`user-projects:${userId}`, JSON.stringify(updatedIds)),
-        c.env.METADATA.put(getVersionKey(projectId, 0), JSON.stringify({ files: initialVersion.files })),
+        c.env.METADATA.put(getVersionKey(projectId, 0), JSON.stringify(initialVersion)),
         c.env.METADATA.put(getVersionIndexKey(projectId), JSON.stringify([0])),
     ]);
     return c.json({ project });

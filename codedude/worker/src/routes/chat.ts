@@ -13,6 +13,27 @@ import { extractExplanation, mergeFiles, parseFilesFromResponse } from "../ai/fi
 import { ChatMessage } from "../types/chat";
 const chatRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
+const getVersionKey = (projectId: string, versionNumber: number) =>
+    `project-version:${projectId}:${versionNumber}`;
+
+const getVersionIndexKey = (projectId: string) =>
+    `project-versions:${projectId}`;
+
+function getProviderApiKey(
+    provider: (typeof MODEL_REGISTRY)[string]["provider"],
+    env: Env,
+): string | undefined {
+    switch (provider) {
+        case "openai":
+            return env.OPENAI_API_KEY;
+        case "anthropic":
+            return env.ANTHROPIC_API_KEY;
+        case "google":
+            return env.GOOGLE_AI_API_KEY;
+        case "deepseek":
+            return env.DEEPSEEK_API_KEY;
+    }
+}
 
 
 
@@ -20,7 +41,8 @@ const chatRoutes = new Hono<{ Bindings: Env; Variables: AppVariables }>();
 
 
 
-chatRoutes.post("/:projectId", async (c) => {
+
+chatRoutes.get("/:projectId", async (c) => {
     const projectId = c.req.param("projectId");
     const userId = c.var.userId;
     const project = await c.env.METADATA.get<Project>(`project:${projectId}`, "json");
@@ -32,7 +54,6 @@ chatRoutes.post("/:projectId", async (c) => {
     }
     const chatHistory = await c.env.METADATA.get<ChatSession>(`chat:${projectId}`, "json");
     return c.json({ messages: chatHistory?.messages || [] });
-
 });
 
 
@@ -42,14 +63,14 @@ chatRoutes.post("/:projectId", async (c) => {
     const body = await c.req.json<{
         message: string;
         model?: string;
-        image?: ImageAttachment[];
+        images?: ImageAttachment[];
     }>();
     const sanitizedMessage = sanitizeChatMessage(body.message);
     if (!sanitizedMessage) {
         return c.json({ error: "Message is empty or invalid", code: "INVALID_MESSAGE" }, 400);
     }
     const modelId = body.model || "gpt-4o-mini";
-    const images = body.image || [];
+    const images = body.images || [];
     if (images.length > 5) {
         return c.json({ error: "Too many images. Maximum is 5.", code: "TOO_MANY_IMAGES" }, 400);
     }
@@ -86,14 +107,19 @@ chatRoutes.post("/:projectId", async (c) => {
             remaining: creditCheck.credits.remaining,
         }, 403);
     }
-    const versionKey = `${projectId}:v${project.currentVersion}/files.json`;
-    const versionObject = await c.env.METADATA.get(versionKey, "json");
-    let existingFiles: ProjectFile[] = [];
-    if (versionObject) {
-        const versionData = await versionObject as Version;
-        existingFiles = versionData.files || [];
-
+    const providerApiKey = getProviderApiKey(modelConfig.provider, c.env);
+    if (!providerApiKey?.trim()) {
+        return c.json({
+            error: `${modelConfig.provider} API key is not configured. Add it to worker/.dev.vars and restart the worker.`,
+            code: "MISSING_API_KEY",
+        }, 503);
     }
+    const versionKey = getVersionKey(projectId, project.currentVersion);
+    const versionObject = await c.env.METADATA.get<{ files: ProjectFile[] } | Version>(
+        versionKey,
+        "json",
+    );
+    let existingFiles: ProjectFile[] = versionObject?.files || [];
     const chatSession = await c.env.METADATA.get<ChatSession>(`chat:${projectId}`, "json");
     const chatHistory = chatSession?.messages || [];
     const systemPrompt = buildSystemPrompt(existingFiles);
@@ -170,9 +196,19 @@ chatRoutes.post("/:projectId", async (c) => {
                 };
                 try{
                     await c.env.METADATA.put(
-                        `${projectId}:v${newVersionNumber}/files.json`,
+                        getVersionKey(projectId, newVersionNumber),
                         JSON.stringify(newVersion),
                     );
+                    const versionNumbers =
+                        (await c.env.METADATA.get<number[]>(getVersionIndexKey(projectId), "json")) ??
+                        [];
+                    if (!versionNumbers.includes(newVersionNumber)) {
+                        versionNumbers.push(newVersionNumber);
+                        await c.env.METADATA.put(
+                            getVersionIndexKey(projectId),
+                            JSON.stringify(versionNumbers),
+                        );
+                    }
                     console.log(`
                         [chat] Stored new version ${newVersionNumber} with ${mergedFiles.length} total files (${parsedFiles.length} changed).`)
 
@@ -246,6 +282,13 @@ chatRoutes.post("/:projectId", async (c) => {
 
         }catch (error) {
             console.error("Error during chat processing:", error);
+            const message =
+                error instanceof Error ? error.message : "AI generation failed";
+            await stream.writeSSE({
+                event: "error",
+                data: JSON.stringify({ code: "GENERATION_FAILED", message }),
+                id: String(eventId++),
+            });
         }
         
 
