@@ -19,6 +19,7 @@
  * @property CLERK_JWKS_URL - Clerk JWKS endpoint for fetching public keys
  * @property ANTHROPIC_API_KEY - Anthropic API key for Claude models
  * @property GOOGLE_AI_API_KEY - Google AI API key for Gemini models
+ * @property GEMINI_API_KEY - Legacy Google AI API key name for Gemini models
  * @property OPENAI_API_KEY - OpenAI API key for GPT models
  * @property DEEPSEEK_API_KEY - DeepSeek API key for DeepSeek V3/R1 models
  * @property CLERK_WEBHOOK_SECRET - Svix signing secret for Clerk billing webhooks
@@ -29,6 +30,7 @@ export interface Env {
   CLERK_JWKS_URL: string;
   ANTHROPIC_API_KEY: string;
   GOOGLE_AI_API_KEY: string;
+  GEMINI_API_KEY?: string;
   OPENAI_API_KEY: string;
   DEEPSEEK_API_KEY: string;
   /** Svix signing secret for verifying Clerk billing webhooks */

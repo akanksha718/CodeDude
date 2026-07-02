@@ -141,7 +141,7 @@ export function getModel(model:string,env:Env):LanguageModel
                 config.apiModelId
             );
         case "google":
-            return createGoogleGenerativeAI({apiKey:env.GOOGLE_AI_API_KEY})(
+            return createGoogleGenerativeAI({apiKey:env.GOOGLE_AI_API_KEY || env.GEMINI_API_KEY})(
                 config.apiModelId
             );
         case "deepseek":

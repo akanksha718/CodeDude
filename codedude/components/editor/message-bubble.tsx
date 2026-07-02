@@ -87,6 +87,10 @@ export function MessageBubble({
         return stripFileTags(message.content, !isStreaming);
     }, [message.content, isStreaming, isUser]);
 
+    const fallbackContent = !isUser && !displayContent.trim()
+        ? "No response received from the model."
+        : "";
+
     const showProgress = !isUser && (
         hasFileTags(message.content) || (message.changedFiles && message.changedFiles.length > 0)
     );
@@ -228,26 +232,26 @@ export function MessageBubble({
                             className="rounded-2xl rounded-tr-md bg-primary px-4 py-2.5 text-sm leading-relaxed text-primary-foreground shadow-sm"
                         >
                             <p
-                                className="whitespace-pre-wrap break-words"
+                                className="whitespace-pre-wrap wrap-break-word"
                             >{displayContent}</p>
                         </div>
                     ) : (
                         <div className="flex w-full flex-col gap-2">
                             {
-                                displayContent && (
+                                (displayContent || fallbackContent) && (
                                     <div className="rounded-2xl rounded-tl-md border border-border/50 bg-card px-4 py-3 text-sm leading-relaxed shadow-sm">
                                         <div
-                                            className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_code]:rounded [&_code]:bg-secondary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border/50"
+                                            className="prose prose-sm dark:prose-invert max-w-none wrap-break-word [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_code]:rounded [&_code]:bg-secondary [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-border/50"
                                         >
                                             <ReactMarkdown
                                                 remarkPlugins={[remarkGfm]}
                                             >
-                                                {displayContent}
+                                                {displayContent || fallbackContent}
                                             </ReactMarkdown>
                                             {
                                                 isStreaming && !showProgress && (
                                                     <span
-                                                        className="ml-0.5 inline-block h-4 w-[2px] animate-pulse bg-primary align-middle"
+                                                        className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-primary align-middle"
                                                     />
                                                 )
                                             }

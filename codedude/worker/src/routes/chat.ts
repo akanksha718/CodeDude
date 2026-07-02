@@ -29,7 +29,7 @@ function getProviderApiKey(
         case "anthropic":
             return env.ANTHROPIC_API_KEY;
         case "google":
-            return env.GOOGLE_AI_API_KEY;
+            return env.GOOGLE_AI_API_KEY || env.GEMINI_API_KEY;
         case "deepseek":
             return env.DEEPSEEK_API_KEY;
     }
@@ -284,6 +284,32 @@ chatRoutes.post("/:projectId", async (c) => {
             console.error("Error during chat processing:", error);
             const message =
                 error instanceof Error ? error.message : "AI generation failed";
+            const errorUserMessage: ChatMessage = {
+                role: "user",
+                id: `msg-${Date.now()}-user`,
+                content: sanitizedMessage,
+                timestamp: new Date().toISOString(),
+                images: images.length > 0 ? images : undefined,
+            };
+            const errorAssistantMessage: ChatMessage = {
+                role: "assistant",
+                id: `msg-${Date.now()}-assistant`,
+                content: `Error: ${message}`,
+                timestamp: new Date().toISOString(),
+                model: modelId,
+            };
+            const errorChatSession: ChatSession = {
+                projectId,
+                messages: [...chatHistory, errorUserMessage, errorAssistantMessage],
+                createdAt: chatSession?.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+            try {
+                await c.env.METADATA.put(`chat:${projectId}`, JSON.stringify(errorChatSession));
+                console.log(`[chat] Stored error chat session for project ${projectId}. Total messages: ${errorChatSession.messages.length}`);
+            } catch (persistError) {
+                console.error("Error storing error chat session:", persistError);
+            }
             await stream.writeSSE({
                 event: "error",
                 data: JSON.stringify({ code: "GENERATION_FAILED", message }),

@@ -264,6 +264,8 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        let streamHadError = false;
+        let currentEventType: string | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -274,6 +276,14 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
 
           for (const line of lines) {
             const trimmedLine = line.trim();
+            if (!trimmedLine) {
+              currentEventType = null;
+              continue;
+            }
+            if (trimmedLine.startsWith("event: ")) {
+              currentEventType = trimmedLine.slice(7);
+              continue;
+            }
             if (!trimmedLine.startsWith("data: ")) {
               continue;
             }
@@ -281,6 +291,9 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
             if (!data) continue;
             try {
               const event = JSON.parse(data);
+              if (currentEventType === "error") {
+                streamHadError = true;
+              }
               if (event.text !== undefined) {
                 setMessages((prev) =>
                   prev.map((msg) =>
@@ -317,6 +330,7 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
                 refreshVersion();
               }
               if (event.code && event.message) {
+                streamHadError = true;
                 setMessages((prev) =>
                   prev.map((msg) =>
                     msg.id === aiMessageId ? {
@@ -327,7 +341,6 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
                   ),
                 );
                 toast.error(event.message as string);
-
               }
             } catch {
 
@@ -335,19 +348,38 @@ const EditorPage = ({ params }: { params: Promise<{ projectId: string }> }) => {
           }
         }
 
-        try {
-          const client = createApiClient(getToken);
-          const [chatResponse, filesResponse] = await Promise.all([
-            client.chats.getHistory(projectId),
-            client.projects.getFiles(projectId),
-          ]);
-          setMessages(chatResponse.messages);
-          const filesRecord = filesToRecord(filesResponse.files);
-          setFiles(filesRecord);
-          currentFilesRef.current = filesRecord;
-          lastSavedFileRef.current = filesRecord;
-        } catch (refreshError) {
-          console.error("Failed to refresh project after generation:", refreshError);
+        if (!streamHadError) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === aiMessageId && !msg.content.trim()
+                ? { ...msg, content: "No response received from the model." }
+                : msg,
+            ),
+          );
+        }
+
+        if (!streamHadError) {
+          try {
+            const client = createApiClient(getToken);
+            const [chatResponse, filesResponse] = await Promise.all([
+              client.chats.getHistory(projectId),
+              client.projects.getFiles(projectId),
+            ]);
+            setMessages((prev) => {
+              const currentAssistant = [...prev].reverse().find((msg) => msg.role === "assistant");
+              return chatResponse.messages.map((msg) =>
+                msg.role === "assistant" && !msg.content.trim() && currentAssistant?.content.trim()
+                  ? { ...msg, content: currentAssistant.content }
+                  : msg,
+              );
+            });
+            const filesRecord = filesToRecord(filesResponse.files);
+            setFiles(filesRecord);
+            currentFilesRef.current = filesRecord;
+            lastSavedFileRef.current = filesRecord;
+          } catch (refreshError) {
+            console.error("Failed to refresh project after generation:", refreshError);
+          }
         }
       } catch (error) {
         const errorMessage =
